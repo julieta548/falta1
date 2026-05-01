@@ -50,6 +50,12 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
         .select('*')
@@ -57,6 +63,14 @@ export default function AdminPage() {
         .single();
 
       if (matchError) throw matchError;
+
+      // Protection: Only admin can see this page
+      if (matchData.admin_id !== user.id) {
+        alert("No tienes permiso para administrar este partido.");
+        router.push(`/match/${params.id}`);
+        return;
+      }
+
       setMatch(matchData);
 
       const { data: playersData, error: playersError } = await supabase
