@@ -34,12 +34,18 @@ export default function AdminPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
-  const [courtCost, setCourtCost] = useState<string>("45000");
+  const [courtCost, setCourtCost] = useState<number | null>(null);
   const [teams, setTeams] = useState<{ teamA: string[], teamB: string[] } | null>(null);
 
   useEffect(() => {
     fetchData();
   }, [params.id]);
+
+  useEffect(() => {
+    if (match && courtCost === null) {
+      setCourtCost(match.price * (match.max_players || 10));
+    }
+  }, [match]);
 
   const fetchData = async () => {
     try {
@@ -96,10 +102,11 @@ export default function AdminPage() {
     </div>
   );
 
-  const totalPaid = players.filter(p => p.paid).length;
-  const pricePerPerson = match?.price || 0;
-  const totalCollected = totalPaid * pricePerPerson;
-  const remainingCost = Math.max(0, parseInt(courtCost) - totalCollected);
+  const paidPlayersCount = players.filter(p => p.paid).length;
+  const pricePerPerson = Number(match?.price) || 0;
+  const totalCollected = paidPlayersCount * pricePerPerson;
+  const currentCourtCost = courtCost !== null ? courtCost : (match ? Number(match.price) * Number(match.max_players) : 0);
+  const remainingCost = Math.max(0, currentCourtCost - totalCollected);
 
   return (
     <main className="flex-1 flex flex-col px-4 py-8 max-w-md mx-auto">
@@ -110,36 +117,53 @@ export default function AdminPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-bold font-outfit">Panel de Control</h1>
+        <div className="text-center">
+          <h1 className="text-xl font-bold font-outfit">Panel de Control</h1>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Match ID: {params.id}</p>
+        </div>
         <div className="w-9" />
       </div>
 
       <div className="space-y-6">
         {/* Expenses Card */}
-        <div className="glass-card rounded-3xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-              <CircleDollarSign className="w-4 h-4" /> Dividir Gastos
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase">Costo Cancha:</span>
-              <input 
-                type="number"
-                value={courtCost}
-                onChange={(e) => setCourtCost(e.target.value)}
-                className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+        <div className="glass-card rounded-3xl p-6 space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
+                <CircleDollarSign className="w-4 h-4 text-primary" /> Finanzas del Partido
+              </h3>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Recaudado</p>
-              <p className="text-xl font-bold text-primary">${totalCollected}</p>
+            
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex justify-between items-center">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase mb-1">Costo Total Cancha</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-white">$</span>
+                  <input 
+                    type="number"
+                    value={currentCourtCost}
+                    onChange={(e) => setCourtCost(parseInt(e.target.value) || 0)}
+                    className="w-28 bg-transparent text-xl font-bold text-white focus:outline-none border-b border-white/20"
+                  />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground uppercase mb-1">Cobro p/p</p>
+                <p className="font-bold text-white">${pricePerPerson}</p>
+              </div>
             </div>
-            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Faltante</p>
-              <p className="text-xl font-bold text-red-500">${remainingCost}</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Recaudado</p>
+                <p className="text-xl font-bold text-primary">${totalCollected}</p>
+                <p className="text-[9px] text-primary/60 mt-1">{paidPlayersCount} pagos recibidos</p>
+              </div>
+              <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Faltante</p>
+                <p className="text-xl font-bold text-red-500">${remainingCost}</p>
+                <p className="text-[9px] text-red-500/60 mt-1">Deuda pendiente</p>
+              </div>
             </div>
           </div>
         </div>
