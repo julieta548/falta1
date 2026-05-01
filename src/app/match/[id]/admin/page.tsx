@@ -325,60 +325,80 @@ export default function AdminPage() {
         </div>
 
         {/* Player List with Stats */}
-        <div className="space-y-3">
-          <h3 className="font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest text-[10px]">
-            <Users className="w-4 h-4 text-primary" />
-            Jugadores y Estadísticas
-          </h3>
+        <div className="space-y-6">
           <div className="space-y-3">
-            {players.filter(p => p.status === 'going').map((player) => (
-              <div 
-                key={player.id}
-                className="bg-white/5 border border-white/10 rounded-3xl p-4 space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-sm font-bold text-primary uppercase">
-                      {player.name[0]}
+            <h3 className="font-bold flex items-center gap-2 px-2 text-primary uppercase tracking-widest text-[10px]">
+              <Users className="w-4 h-4" />
+              Jugadores Confirmados ({players.filter(p => p.status === 'going').length})
+            </h3>
+            <div className="space-y-3">
+              {players.filter(p => p.status === 'going').map((player) => (
+                <div 
+                  key={player.id}
+                  className="bg-white/5 border border-white/10 rounded-3xl p-4 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-sm font-bold text-primary uppercase">
+                        {player.name[0]}
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm block">{player.name}</span>
+                        <button
+                          onClick={() => togglePaid(player)}
+                          className={`text-[10px] font-bold uppercase ${player.paid ? 'text-primary' : 'text-muted-foreground'}`}
+                        >
+                          {player.paid ? "Pagó ✓" : "Pendiente"}
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-bold text-sm block">{player.name}</span>
-                      <button
-                        onClick={() => togglePaid(player)}
-                        className={`text-[10px] font-bold uppercase ${player.paid ? 'text-primary' : 'text-muted-foreground'}`}
-                      >
-                        {player.paid ? "Pagó ✓" : "Pendiente"}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Stats Inputs */}
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <p className="text-[8px] text-muted-foreground uppercase mb-1">Goles</p>
-                      <input 
-                        type="number"
-                        className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold focus:ring-1 focus:ring-primary outline-none"
-                        value={player.goals}
-                        onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos</p>
-                      <input 
-                        type="number"
-                        max="10"
-                        min="0"
-                        className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
-                        value={player.rating}
-                        onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
-                      />
+                    
+                    {/* Stats Inputs */}
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Goles</p>
+                        <input 
+                          type="number"
+                          className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold focus:ring-1 focus:ring-primary outline-none"
+                          value={player.goals}
+                          onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos</p>
+                        <input 
+                          type="number"
+                          max="10"
+                          min="0"
+                          className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
+                          value={player.rating}
+                          onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          {/* Bajas Section */}
+          {players.filter(p => p.status === 'not-going').length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-bold flex items-center gap-2 px-2 text-red-500 uppercase tracking-widest text-[10px]">
+                <XCircle className="w-4 h-4" />
+                Bajas ({players.filter(p => p.status === 'not-going').length})
+              </h3>
+              <div className="space-y-2 opacity-50">
+                {players.filter(p => p.status === 'not-going').map((player) => (
+                  <div key={player.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center">
+                    <span className="text-sm font-medium">{player.name}</span>
+                    <span className="text-[10px] uppercase font-bold text-red-500">No va</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Team Generator */}

@@ -13,7 +13,8 @@ import {
   User,
   Loader2,
   LogIn,
-  CalendarDays
+  CalendarDays,
+  History
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -104,6 +105,10 @@ export default function Home() {
     </div>
   );
 
+  const now = new Date();
+  const upcomingMatches = myMatches.filter(m => new Date(m.time) >= now);
+  const pastMatches = myMatches.filter(m => new Date(m.time) < now);
+
   return (
     <main className="flex-1 flex flex-col items-center px-4 py-12 bg-[radial-gradient(circle_at_top,_var(--primary)_0%,_transparent_25%)] min-h-screen">
       {/* User Header */}
@@ -153,14 +158,14 @@ export default function Home() {
         <AnimatePresence mode="wait">
           {user ? (
             <div className="space-y-8">
-              {/* My Pending Matches */}
-              {myMatches.length > 0 && (
+              {/* Upcoming Matches */}
+              {upcomingMatches.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-wider">
-                    <CalendarDays className="w-4 h-4 text-primary" /> Tus Partidos Pendientes
+                  <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
+                    <CalendarDays className="w-3 h-3 text-primary" /> Próximos Partidos
                   </h3>
                   <div className="space-y-3">
-                    {myMatches.map((m) => (
+                    {upcomingMatches.map((m) => (
                       <motion.div
                         key={m.id}
                         initial={{ opacity: 0, x: -10 }}
@@ -175,9 +180,6 @@ export default function Home() {
                               <Clock className="w-3 h-3" /> 
                               {new Date(m.time).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" /> {m.max_players} jugadores
-                            </span>
                           </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -187,15 +189,36 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Past Matches (History) */}
+              {pastMatches.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
+                    <History className="w-3 h-3" /> Historial
+                  </h3>
+                  <div className="space-y-3 opacity-60">
+                    {pastMatches.slice(0, 3).map((m) => (
+                      <div
+                        key={m.id}
+                        onClick={() => router.push(`/match/${m.id}`)}
+                        className="glass-card p-3 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all"
+                      >
+                        <p className="text-xs font-medium">{m.location}</p>
+                        <span className="text-[9px]">{new Date(m.time).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Create Match Form */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-wider">
-                  <Trophy className="w-4 h-4 text-primary" /> Crear Nuevo Partido
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
+                  <Trophy className="w-3 h-3 text-primary" /> Crear Nuevo Partido
                 </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="glass-card p-6 rounded-3xl space-y-5">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                      <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                         <MapPin className="w-4 h-4" /> Lugar
                       </label>
                       <input
@@ -209,7 +232,7 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                      <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                         <Clock className="w-4 h-4" /> Cuándo
                       </label>
                       <input
@@ -224,23 +247,26 @@ export default function Home() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-                          <Users className="w-4 h-4" /> Jugadores
+                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                          <Users className="w-4 h-4" /> Tipo
                         </label>
-                        <select
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
-                          value={formData.players}
-                          onChange={(e) => setFormData({ ...formData, players: e.target.value })}
-                        >
-                          <option value="10">5 vs 5</option>
-                          <option value="14">7 vs 7</option>
-                          <option value="18">9 vs 9</option>
-                          <option value="22">11 vs 11</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-white font-medium"
+                            value={formData.players}
+                            onChange={(e) => setFormData({ ...formData, players: e.target.value })}
+                          >
+                            <option value="10" className="bg-neutral-900">5 vs 5</option>
+                            <option value="14" className="bg-neutral-900">7 vs 7</option>
+                            <option value="18" className="bg-neutral-900">9 vs 9</option>
+                            <option value="22" className="bg-neutral-900">11 vs 11</option>
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                           <CircleDollarSign className="w-4 h-4" /> Precio ($)
                         </label>
                         <input
@@ -299,5 +325,23 @@ export default function Home() {
         </div>
       </motion.div>
     </main>
+  );
+}
+
+// Re-using icon for styling
+function ChevronDown(props: any) {
+  return (
+    <svg 
+      {...props}
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
   );
 }

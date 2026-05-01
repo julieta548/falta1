@@ -39,8 +39,12 @@ export default function MatchPage() {
   const [loading, setLoading] = useState(true);
   const [userStatus, setUserStatus] = useState<"none" | "going" | "not-going">("none");
 
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     fetchMatchData();
+    checkAdmin();
     
     // Subscribe to changes
     const channel = supabase
@@ -54,6 +58,15 @@ export default function MatchPage() {
       supabase.removeChannel(channel);
     };
   }, [params.id]);
+
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: m } = await supabase.from('matches').select('admin_id').eq('id', params.id).single();
+      if (m?.admin_id === user.id) setIsAdmin(true);
+    }
+    setCheckingAdmin(false);
+  };
 
   const fetchMatchData = async () => {
     try {
@@ -214,6 +227,16 @@ export default function MatchPage() {
 
         {/* Actions */}
         <div className="sticky bottom-8 left-0 right-0 space-y-3">
+          {isAdmin && (
+            <button
+              onClick={() => router.push(`/match/${params.id}/admin`)}
+              className="w-full bg-white text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-white/10"
+            >
+              <RefreshCcw className="w-5 h-5" />
+              Gestionar Partido
+            </button>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => handleStatus("going")}
@@ -245,13 +268,6 @@ export default function MatchPage() {
           >
             <MessageCircle className="w-5 h-5" />
             Compartir en WhatsApp
-          </button>
-
-          <button
-            onClick={() => window.location.href += "/admin"}
-            className="w-full text-muted-foreground hover:text-white text-xs font-medium py-2 transition-all"
-          >
-            Soy el organizador
           </button>
         </div>
       </motion.div>
