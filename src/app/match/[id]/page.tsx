@@ -11,10 +11,12 @@ import {
   XCircle, 
   Trophy,
   MessageCircle,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 interface Player {
   name: string;
@@ -31,6 +33,7 @@ interface Match {
 
 export default function MatchPage() {
   const params = useParams();
+  const router = useRouter();
   const [match, setMatch] = useState<Match | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +119,16 @@ export default function MatchPage() {
   };
 
   return (
-    <main className="flex-1 flex flex-col items-center px-4 py-8 bg-[radial-gradient(circle_at_top,_var(--primary)_0%,_transparent_15%)] bg-no-repeat">
+    <main className="flex-1 flex flex-col items-center px-4 py-8 bg-[radial-gradient(circle_at_top,_var(--primary)_0%,_transparent_15%)] bg-no-repeat min-h-screen">
+      <div className="w-full max-w-md flex justify-start mb-4">
+        <button 
+          onClick={() => router.push('/')}
+          className="p-2 rounded-full bg-white/5 border border-white/10 text-muted-foreground hover:text-white transition-all"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      </div>
+
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
