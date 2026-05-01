@@ -43,9 +43,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (match && courtCost === null) {
-      setCourtCost(match.price * (match.max_players || 10));
+      const calculatedCost = Number(match.price) * Number(match.max_players || 0);
+      setCourtCost(calculatedCost);
     }
-  }, [match]);
+  }, [match, courtCost]);
 
   const fetchData = async () => {
     try {
