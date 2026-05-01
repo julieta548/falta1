@@ -10,6 +10,7 @@ import {
   ChevronRight, 
   Trophy,
   LogOut,
+  LogIn,
   User,
   Loader2
 } from "lucide-react";
