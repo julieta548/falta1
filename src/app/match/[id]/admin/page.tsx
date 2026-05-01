@@ -26,6 +26,8 @@ interface Match {
   id: string;
   location: string;
   price: number;
+  max_players: number;
+  admin_id: string;
 }
 
 export default function AdminPage() {
