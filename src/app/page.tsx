@@ -156,6 +156,7 @@ export default function Home() {
                 <input
                   required
                   type="datetime-local"
+                  step="900"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all [color-scheme:dark]"
                   value={formData.time}
                   onChange={(e) => setFormData({ ...formData, time: e.target.value })}
