@@ -7,6 +7,7 @@ import {
   Users, 
   CircleDollarSign, 
   CheckCircle2, 
+  XCircle,
   RefreshCcw,
   LayoutGrid,
   Trophy,
