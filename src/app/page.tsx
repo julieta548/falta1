@@ -9,6 +9,7 @@ import {
   MapPin, 
   Users, 
   ChevronRight, 
+  ChevronDown,
   Trophy,
   Activity,
   LogOut,
@@ -161,17 +162,20 @@ export default function HomePage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Jugadores</label>
-                    <select 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-xs appearance-none"
-                      value={maxPlayers}
-                      onChange={(e) => setMaxPlayers(e.target.value)}
-                    >
-                      <option value="10">Fútbol 5 (10)</option>
-                      <option value="12">Fútbol 6 (12)</option>
-                      <option value="14">Fútbol 7 (14)</option>
-                      <option value="16">Fútbol 8 (16)</option>
-                      <option value="22">Fútbol 11 (22)</option>
-                    </select>
+                    <div className="relative">
+                      <select 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-xs appearance-none cursor-pointer"
+                        value={maxPlayers}
+                        onChange={(e) => setMaxPlayers(e.target.value)}
+                      >
+                        <option value="10" className="bg-[#121212] text-white">Fútbol 5 (10)</option>
+                        <option value="12" className="bg-[#121212] text-white">Fútbol 6 (12)</option>
+                        <option value="14" className="bg-[#121212] text-white">Fútbol 7 (14)</option>
+                        <option value="16" className="bg-[#121212] text-white">Fútbol 8 (16)</option>
+                        <option value="22" className="bg-[#121212] text-white">Fútbol 11 (22)</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    </div>
                   </div>
                 </div>
 

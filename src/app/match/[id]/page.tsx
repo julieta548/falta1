@@ -239,31 +239,39 @@ export default function MatchPage() {
             </button>
           )}
 
-          {/* Participation Actions */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleStatus("going")}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                userStatus === "going" 
-                  ? "bg-primary text-black shadow-lg shadow-primary/20" 
-                  : "bg-white/5 text-white border border-white/5 hover:bg-white/10"
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Voy
-            </button>
-            <button
-              onClick={() => handleStatus("not-going")}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                userStatus === "not-going" 
-                  ? "bg-red-500/20 text-red-500 border border-red-500/30" 
-                  : "bg-white/5 text-muted-foreground border border-white/5 hover:bg-white/10"
-              }`}
-            >
-              <XCircle className="w-4 h-4" />
-              No voy
-            </button>
-          </div>
+          {/* Participation Actions - Only show if match NOT finished */}
+          {match && new Date(match.time) > new Date() ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleStatus("going")}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  userStatus === "going" 
+                    ? "bg-primary text-black shadow-lg shadow-primary/20" 
+                    : "bg-white/5 text-white border border-white/5 hover:bg-white/10"
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Voy
+              </button>
+              <button
+                onClick={() => handleStatus("not-going")}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  userStatus === "not-going" 
+                    ? "bg-red-500/20 text-red-500 border border-red-500/30" 
+                    : "bg-white/5 text-muted-foreground border border-white/5 hover:bg-white/10"
+                }`}
+              >
+                <XCircle className="w-4 h-4" />
+                No voy
+              </button>
+            </div>
+          ) : (
+            <div className="w-full py-4 bg-white/5 border border-white/5 rounded-2xl text-center">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                El partido ha finalizado
+              </p>
+            </div>
+          )}
 
           <button
             onClick={shareOnWhatsApp}
