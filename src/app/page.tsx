@@ -54,13 +54,35 @@ export default function HomePage() {
   };
 
   const fetchMatches = async (userId: string) => {
-    const { data, error } = await supabase
+    // 1. Partidos que organizo
+    const { data: organized } = await supabase
       .from("matches")
       .select("*")
-      .eq('admin_id', userId)
-      .order("time", { ascending: true });
+      .eq('admin_id', userId);
 
-    if (!error) setMatches(data || []);
+    // 2. Partidos donde participo (obtenemos los IDs de los partidos desde la tabla players)
+    const { data: participations } = await supabase
+      .from("players")
+      .select("match_id")
+      .eq('user_id', userId);
+    
+    const participatedIds = (participations || []).map(p => p.match_id);
+    
+    // Si participo en alguno, los traemos
+    let played: Match[] = [];
+    if (participatedIds.length > 0) {
+      const { data } = await supabase
+        .from("matches")
+        .select("*")
+        .in('id', participatedIds);
+      played = data || [];
+    }
+
+    // Unificamos y quitamos duplicados (usando un Map por ID)
+    const allMatches = [...(organized || []), ...played];
+    const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.id, m])).values());
+
+    setMatches(uniqueMatches.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()));
     setLoading(false);
   };
 
@@ -68,12 +90,16 @@ export default function HomePage() {
     e.preventDefault();
     if (!user) return;
 
+    // Convertimos la hora local del input a un objeto Date real para manejar el timezone
+    const localDate = new Date(time);
+    const isoTime = localDate.toISOString();
+
     const { data, error } = await supabase
       .from("matches")
       .insert([
         { 
           location, 
-          time, 
+          time: isoTime, 
           max_players: parseInt(maxPlayers), 
           price: parseFloat(price),
           admin_id: user.id 
@@ -100,11 +126,11 @@ export default function HomePage() {
       {/* User Profile Bar */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30">
-            <Activity className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-lg shadow-primary/10">
+            <Trophy className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Bienvenido</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Organizador</p>
             <h2 className="text-lg font-bold font-outfit truncate max-w-[150px]">{user?.email?.split('@')[0]}</h2>
           </div>
         </div>
@@ -264,7 +290,12 @@ export default function HomePage() {
                     </div>
                     <div className="text-left">
                       <h4 className="font-bold text-sm mb-1 text-muted-foreground">{match.location}</h4>
-                      <p className="text-[10px] text-muted-foreground/60 uppercase font-bold tracking-widest">Partido Finalizado</p>
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-[10px] text-muted-foreground/60 font-medium">
+                          {new Date(match.time).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })} - {new Date(match.time).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                        </p>
+                        <p className="text-[9px] text-primary/40 uppercase font-black tracking-widest mt-1">Partido Finalizado</p>
+                      </div>
                     </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground/40" />
