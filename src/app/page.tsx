@@ -40,7 +40,6 @@ export default function HomePage() {
 
   useEffect(() => {
     checkUser();
-    fetchMatches();
   }, []);
 
   const checkUser = async () => {
