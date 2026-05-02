@@ -15,7 +15,8 @@ import {
   ChevronUp,
   Sparkles,
   DollarSign,
-  CircleDollarSign
+  CircleDollarSign,
+  Shield
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -39,6 +40,8 @@ interface Match {
   score_a: number | null;
   score_b: number | null;
   comments: string | null;
+  team_a_name: string | null;
+  team_b_name: string | null;
 }
 
 export default function AdminPage() {
@@ -56,6 +59,8 @@ export default function AdminPage() {
   const [scoreA, setScoreA] = useState<string>("");
   const [scoreB, setScoreB] = useState<string>("");
   const [comments, setComments] = useState<string>("");
+  const [teamAName, setTeamAName] = useState<string>("Equipo A");
+  const [teamBName, setTeamBName] = useState<string>("Equipo B");
 
   useEffect(() => {
     fetchData();
@@ -70,6 +75,8 @@ export default function AdminPage() {
       setScoreA(match.score_a?.toString() || "");
       setScoreB(match.score_b?.toString() || "");
       setComments(match.comments || "");
+      setTeamAName(match.team_a_name || "Equipo A");
+      setTeamBName(match.team_b_name || "Equipo B");
     }
   }, [match]);
 
@@ -148,7 +155,6 @@ export default function AdminPage() {
 
       setAiReport(aiStats);
 
-      // ACTUALIZACIÓN DE ESTADO INMEDIATA
       setPlayers(prev => prev.map(player => {
         const aiData = aiStats.find((s: any) => s.name.toLowerCase().trim() === player.name.toLowerCase().trim());
         if (aiData) {
@@ -168,27 +174,26 @@ export default function AdminPage() {
   const handleSaveResults = async () => {
     setSaving(true);
     try {
-      // 1. Guardar datos del partido
       const { error: matchError } = await supabase
         .from('matches')
         .update({
           score_a: scoreA === "" ? null : parseInt(scoreA),
           score_b: scoreB === "" ? null : parseInt(scoreB),
-          comments: comments
+          comments: comments,
+          team_a_name: teamAName,
+          team_b_name: teamBName
         })
         .eq('id', params.id);
 
       if (matchError) throw matchError;
 
-      // 2. Guardar datos de CADA jugador (incluyendo los de la IA)
-      // Usamos Promise.all para que sea más rápido y seguro
       const savePromises = players.map(player => 
         supabase
           .from('players')
           .update({ 
             goals: player.goals, 
             rating: player.rating,
-            paid: player.paid // Guardamos todo por seguridad
+            paid: player.paid
           })
           .eq('id', player.id)
       );
@@ -283,7 +288,7 @@ export default function AdminPage() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="p-5 border-t border-white/5 space-y-5"
+                className="p-5 border-t border-white/5 space-y-6"
               >
                 {!isMatchFinished ? (
                   <div className="py-6 text-center space-y-2">
@@ -292,12 +297,40 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <>
+                    {/* Team Names Customization */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1 px-1">
+                          <Shield className="w-2.5 h-2.5 text-primary" /> Nombre A
+                        </label>
+                        <input 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-primary/50"
+                          value={teamAName}
+                          onChange={(e) => setTeamAName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1 px-1">
+                          <Shield className="w-2.5 h-2.5 text-muted-foreground" /> Nombre B
+                        </label>
+                        <input 
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-white/30"
+                          value={teamBName}
+                          onChange={(e) => setTeamBName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-3">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">Marcador Final</p>
                       <div className="flex items-center justify-center gap-4">
-                        <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all" value={scoreA} onChange={(e) => setScoreA(e.target.value)} />
+                        <div className="text-center space-y-1 flex-1">
+                           <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all mx-auto" value={scoreA} onChange={(e) => setScoreA(e.target.value)} />
+                        </div>
                         <span className="text-2xl font-bold text-muted-foreground">:</span>
-                        <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all" value={scoreB} onChange={(e) => setScoreB(e.target.value)} />
+                        <div className="text-center space-y-1 flex-1">
+                          <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all mx-auto" value={scoreB} onChange={(e) => setScoreB(e.target.value)} />
+                        </div>
                       </div>
                     </div>
 
@@ -399,11 +432,11 @@ export default function AdminPage() {
           {teams && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-3 pt-2">
               <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 shadow-lg shadow-primary/5">
-                <p className="text-[10px] font-bold text-primary uppercase mb-3 tracking-widest text-center border-b border-primary/20 pb-2">Equipo A</p>
+                <p className="text-[10px] font-bold text-primary uppercase mb-3 tracking-widest text-center border-b border-primary/20 pb-2">{teamAName}</p>
                 {teams.teamA.map(n => <p key={n} className="text-xs py-1.5 border-b border-white/5 last:border-0 font-medium">{n}</p>)}
               </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3 tracking-widest text-center border-b border-white/10 pb-2">Equipo B</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3 tracking-widest text-center border-b border-white/10 pb-2">{teamBName}</p>
                 {teams.teamB.map(n => <p key={n} className="text-xs py-1.5 border-b border-white/5 last:border-0 font-medium">{n}</p>)}
               </div>
             </motion.div>
@@ -416,7 +449,7 @@ export default function AdminPage() {
         <button 
           onClick={handleSaveResults}
           disabled={saving}
-          className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 transition-all active:scale-95 disabled:opacity-50"
+          className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 transition-all active:scale-95 disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           <span className="tracking-wide">GUARDAR TODO</span>

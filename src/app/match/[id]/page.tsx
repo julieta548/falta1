@@ -38,6 +38,8 @@ interface Match {
   score_a: number | null;
   score_b: number | null;
   comments: string | null;
+  team_a_name: string | null;
+  team_b_name: string | null;
 }
 
 export default function MatchPage() {
@@ -150,17 +152,25 @@ export default function MatchPage() {
           <div className="glass-card rounded-3xl p-6 border-2 border-primary/20 shadow-xl shadow-primary/5 space-y-4">
             <div className="text-center space-y-1">
               <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em]">Resultado Final</p>
-              <div className="flex items-center justify-center gap-6 py-2">
-                <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase mb-1">Equipo A</p>
-                  <span className="text-4xl font-black">{match?.score_a}</span>
-                </div>
-                <span className="text-2xl font-bold text-muted-foreground self-end mb-1">:</span>
-                <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase mb-1">Equipo B</p>
-                  <span className="text-4xl font-black">{match?.score_b}</span>
-                </div>
+              <div className="flex items-center justify-center gap-8 py-4">
+              <div className="flex-1 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 tracking-tighter truncate px-1">
+                  {match?.team_a_name || "Equipo A"}
+                </p>
+                <span className="text-5xl font-black text-white">{match?.score_a ?? 0}</span>
               </div>
+              
+              <div className="flex items-center justify-center">
+                <span className="text-3xl font-black text-primary/40">:</span>
+              </div>
+              
+              <div className="flex-1 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 tracking-tighter truncate px-1">
+                  {match?.team_b_name || "Equipo B"}
+                </p>
+                <span className="text-5xl font-black text-white">{match?.score_b ?? 0}</span>
+              </div>
+            </div>
             </div>
 
             {match?.comments && (
@@ -274,9 +284,9 @@ export default function MatchPage() {
           {isAdmin && (
             <button
               onClick={() => router.push(`/match/${params.id}/admin`)}
-              className="w-full bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-white/10"
+              className="w-full bg-[#1a1a1a] hover:bg-[#252525] text-white text-xs font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-white/20 shadow-xl"
             >
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className="w-4 h-4 text-primary" />
               Panel de Administración
             </button>
           )}
@@ -292,16 +302,16 @@ export default function MatchPage() {
               </button>
               <button
                 onClick={() => handleStatus("not-going")}
-                className="flex-1 py-4 rounded-2xl bg-white/5 text-muted-foreground border border-white/5 font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="flex-1 py-4 rounded-2xl bg-[#1a1a1a] text-muted-foreground border border-white/10 font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
               >
                 <XCircle className="w-5 h-5" />
                 Baja
               </button>
             </div>
           ) : (
-            <div className="bg-primary/5 border border-primary/20 p-4 rounded-3xl text-center">
-              <p className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Partido Finalizado</p>
-              <p className="text-[10px] text-muted-foreground mt-1">¡Gracias por participar!</p>
+            <div className="bg-primary/20 border border-primary/40 p-5 rounded-3xl text-center shadow-lg shadow-primary/5">
+              <p className="text-sm font-black text-primary uppercase tracking-[0.2em]">Partido Finalizado</p>
+              <p className="text-xs text-muted-foreground font-medium mt-1">¡Gracias por participar!</p>
             </div>
           )}
         </div>
