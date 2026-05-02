@@ -12,7 +12,8 @@ import {
   Trophy,
   MessageCircle,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
