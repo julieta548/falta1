@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [courtCost, setCourtCost] = useState<number | null>(null);
   const [teams, setTeams] = useState<{ teamA: string[], teamB: string[] } | null>(null);
   const [showPostMatch, setShowPostMatch] = useState(false);
+  const [aiReport, setAiReport] = useState<any[] | null>(null);
 
   // Form states for match
   const [scoreA, setScoreA] = useState<string>("");
@@ -147,6 +148,8 @@ export default function AdminPage() {
       console.log("📊 Datos recibidos de la IA:", aiStats);
       
       if (aiStats.error) throw new Error(aiStats.error);
+
+      setAiReport(aiStats); // Guardamos el informe para mostrarlo
 
       const updatedPlayers = players.map(player => {
         // Buscamos coincidencia exacta o parecida
@@ -332,6 +335,33 @@ export default function AdminPage() {
                       onChange={(e) => setComments(e.target.value)}
                     />
                   </div>
+
+                  {/* AI Scout Report */}
+                  <AnimatePresence>
+                    {aiReport && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Informe del Ojeador IA ✨</p>
+                          <button onClick={() => setAiReport(null)} className="text-[10px] text-muted-foreground hover:text-white">Cerrar</button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {aiReport.map((stat, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs border-b border-white/5 pb-1">
+                              <span className="font-bold">{stat.name}</span>
+                              <div className="space-x-3">
+                                <span className="text-muted-foreground">Rating: <span className="text-primary">{stat.rating}</span></span>
+                                {stat.goals > 0 && <span className="text-muted-foreground">Goles: <span className="text-white">{stat.goals}</span></span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <button
                     disabled={saving}
