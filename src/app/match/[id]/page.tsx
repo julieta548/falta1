@@ -163,13 +163,13 @@ export default function MatchPage() {
               </div>
             </div>
 
-            {match.comments && (
+            {match?.comments && (
               <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2 flex items-center gap-2">
                   <Trophy className="w-3 h-3 text-primary" /> Crónica del Capitán
                 </p>
                 <p className="text-xs text-muted-foreground italic leading-relaxed">
-                  "{match.comments}"
+                  "{match?.comments}"
                 </p>
               </div>
             )}
