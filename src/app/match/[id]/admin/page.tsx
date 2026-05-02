@@ -167,12 +167,24 @@ export default function AdminPage() {
 
   const generateTeams = () => {
     const goingPlayers = players.filter(p => p.status === 'going');
-    const shuffled = [...goingPlayers].sort(() => 0.5 - Math.random());
-    const mid = Math.ceil(shuffled.length / 2);
-    setTeams({
-      teamA: shuffled.slice(0, mid).map(p => p.name),
-      teamB: shuffled.slice(mid).map(p => p.name),
+    
+    // Sort players by rating descending. If rating is null/0, treat as average (e.g. 50)
+    const sorted = [...goingPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    
+    const teamA: string[] = [];
+    const teamB: string[] = [];
+
+    // Snake distribution: A, B, B, A, A, B, B, A...
+    sorted.forEach((player, index) => {
+      const mod = index % 4;
+      if (mod === 0 || mod === 3) {
+        teamA.push(player.name);
+      } else {
+        teamB.push(player.name);
+      }
     });
+
+    setTeams({ teamA, teamB });
   };
 
   if (loading) return (
@@ -366,12 +378,12 @@ export default function AdminPage() {
                         />
                       </div>
                       <div className="text-center">
-                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos</p>
+                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos (0-100)</p>
                         <input 
                           type="number"
-                          max="10"
+                          max="100"
                           min="0"
-                          className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
+                          className="w-14 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
                           value={player.rating}
                           onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
                         />
@@ -406,10 +418,10 @@ export default function AdminPage() {
         <div className="space-y-4 pt-4 pb-12">
           <button
             onClick={generateTeams}
-            className="w-full border border-white/10 bg-white/5 text-white font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all active:scale-[0.98]"
+            className="w-full border border-primary/20 bg-primary/5 text-primary font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-primary/10 transition-all active:scale-[0.98]"
           >
             <RefreshCcw className="w-5 h-5" />
-            Rearmar Equipos
+            Armar Equipos Equilibrados
           </button>
 
           <AnimatePresence>
