@@ -129,6 +129,46 @@ export default function AdminPage() {
     setPlayers(players.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
+  const analyzeWithAI = async () => {
+    if (!comments) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch('/api/analyze-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          comments, 
+          players: players.map(p => p.name) 
+        })
+      });
+
+      const aiStats = await response.json();
+      console.log("📊 Datos recibidos de la IA:", aiStats);
+      
+      if (aiStats.error) throw new Error(aiStats.error);
+
+      const updatedPlayers = players.map(player => {
+        // Buscamos coincidencia exacta o parecida
+        const aiData = aiStats.find((s: any) => 
+          s.name.toLowerCase().trim() === player.name.toLowerCase().trim()
+        );
+        if (aiData) {
+          return { ...player, rating: aiData.rating, goals: aiData.goals };
+        }
+        return player;
+      });
+      
+      setPlayers(updatedPlayers);
+      alert("✨ Gemini AI: He analizado el partido. ¡Revisa los puntajes sugeridos!");
+    } catch (error: any) {
+      console.error("AI Analysis Error:", error);
+      alert("Error en la IA: " + error.message + ". ¿Agregaste la GEMINI_API_KEY a .env.local?");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveResults = async () => {
     setSaving(true);
     try {
@@ -198,6 +238,7 @@ export default function AdminPage() {
   const totalCollected = paidPlayersCount * pricePerPerson;
   const currentCourtCost = courtCost !== null ? courtCost : (match ? Number(match.price) * Number(match.max_players) : 0);
   const remainingCost = Math.max(0, currentCourtCost - totalCollected);
+  const isMatchFinished = match ? new Date(match.time) < new Date() : false;
 
   return (
     <main className="flex-1 flex flex-col px-4 py-8 max-w-md mx-auto min-h-screen pb-24">
@@ -217,84 +258,100 @@ export default function AdminPage() {
 
       <div className="space-y-6">
         {/* Post-Match Summary / Results */}
-        <div className="glass-card rounded-3xl overflow-hidden">
-          <button 
-            onClick={() => setShowPostMatch(!showPostMatch)}
-            className="w-full p-6 flex items-center justify-between bg-primary/5 hover:bg-primary/10 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-xl">
-                <Trophy className="w-5 h-5 text-primary" />
+        {isMatchFinished ? (
+          <div className="glass-card rounded-3xl overflow-hidden">
+            <button 
+              onClick={() => setShowPostMatch(!showPostMatch)}
+              className="w-full p-6 flex items-center justify-between bg-primary/5 hover:bg-primary/10 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/20 rounded-xl">
+                  <Trophy className="w-5 h-5 text-primary" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-sm">Post-Partido</h3>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Marcador y estadísticas</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h3 className="font-bold text-sm">Post-Partido</h3>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Marcador y estadísticas</p>
-              </div>
-            </div>
-            {showPostMatch ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </button>
+              {showPostMatch ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </button>
 
-          <AnimatePresence>
-            {showPostMatch && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="p-6 pt-0 space-y-6 border-t border-white/5"
-              >
-                {/* Score Inputs */}
-                <div className="space-y-3 pt-4">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Marcador Final</p>
-                  <div className="flex items-center justify-center gap-6">
-                    <div className="text-center space-y-2">
-                      <p className="text-[10px] font-medium text-muted-foreground">Equipo A</p>
-                      <input 
-                        type="number"
-                        placeholder="0"
-                        className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
-                        value={scoreA}
-                        onChange={(e) => setScoreA(e.target.value)}
-                      />
-                    </div>
-                    <div className="text-2xl font-bold text-muted-foreground mt-6">:</div>
-                    <div className="text-center space-y-2">
-                      <p className="text-[10px] font-medium text-muted-foreground">Equipo B</p>
-                      <input 
-                        type="number"
-                        placeholder="0"
-                        className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
-                        value={scoreB}
-                        onChange={(e) => setScoreB(e.target.value)}
-                      />
+            <AnimatePresence>
+              {showPostMatch && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="p-6 pt-0 space-y-6 border-t border-white/5"
+                >
+                  {/* Score Inputs */}
+                  <div className="space-y-3 pt-4">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Marcador Final</p>
+                    <div className="flex items-center justify-center gap-6">
+                      <div className="text-center space-y-2">
+                        <p className="text-[10px] font-medium text-muted-foreground">Equipo A</p>
+                        <input 
+                          type="number"
+                          placeholder="0"
+                          className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
+                          value={scoreA}
+                          onChange={(e) => setScoreA(e.target.value)}
+                        />
+                      </div>
+                      <div className="text-2xl font-bold text-muted-foreground mt-6">:</div>
+                      <div className="text-center space-y-2">
+                        <p className="text-[10px] font-medium text-muted-foreground">Equipo B</p>
+                        <input 
+                          type="number"
+                          placeholder="0"
+                          className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
+                          value={scoreB}
+                          onChange={(e) => setScoreB(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* General Comments */}
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                    <MessageSquare className="w-3 h-3" /> Comentarios para la IA
-                  </p>
-                  <textarea 
-                    placeholder="Ej: Partido muy parejo, Lucas fue el mejor arquero, Santi corrió todo..."
-                    className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/50 outline-none resize-none"
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                  />
-                </div>
+                  {/* General Comments */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                        <MessageSquare className="w-3 h-3" /> Comentarios para la IA
+                      </p>
+                      <button 
+                        onClick={analyzeWithAI}
+                        className="text-[10px] font-bold text-primary flex items-center gap-1 hover:bg-primary/10 px-2 py-1 rounded-lg transition-all"
+                      >
+                        <RefreshCcw className="w-3 h-3" /> Analizar con IA ✨
+                      </button>
+                    </div>
+                    <textarea 
+                      placeholder="Ej: Santi fue un crack metió 3 goles. Lucas jugó muy bien pero se cansó al final..."
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
+                    />
+                  </div>
 
-                <button
-                  disabled={saving}
-                  onClick={handleSaveResults}
-                  className="w-full bg-primary text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  Guardar Resultados
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                  <button
+                    disabled={saving}
+                    onClick={handleSaveResults}
+                    className="w-full bg-primary text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    Guardar Resultados
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="bg-white/5 border border-dashed border-white/10 rounded-3xl p-6 text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
+              Las estadísticas estarán disponibles cuando el partido finalice
+            </p>
+          </div>
+        )}
 
         {/* Expenses Card */}
         <div className="glass-card rounded-3xl p-6 space-y-6">
@@ -367,28 +424,30 @@ export default function AdminPage() {
                     </div>
                     
                     {/* Stats Inputs */}
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Goles</p>
-                        <input 
-                          type="number"
-                          className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold focus:ring-1 focus:ring-primary outline-none"
-                          value={player.goals}
-                          onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)}
-                        />
+                    {isMatchFinished && (
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-[8px] text-muted-foreground uppercase mb-1">Goles</p>
+                          <input 
+                            type="number"
+                            className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold focus:ring-1 focus:ring-primary outline-none"
+                            value={player.goals}
+                            onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos (0-100)</p>
+                          <input 
+                            type="number"
+                            max="100"
+                            min="0"
+                            className="w-14 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
+                            value={player.rating}
+                            onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos (0-100)</p>
-                        <input 
-                          type="number"
-                          max="100"
-                          min="0"
-                          className="w-14 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
-                          value={player.rating}
-                          onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
