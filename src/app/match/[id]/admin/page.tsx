@@ -5,18 +5,17 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft,
   Users, 
-  CircleDollarSign, 
   CheckCircle2, 
   XCircle,
   RefreshCcw,
-  LayoutGrid,
   Trophy,
   Loader2,
   Save,
-  Star,
-  MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Sparkles,
+  DollarSign,
+  CircleDollarSign
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -54,7 +53,6 @@ export default function AdminPage() {
   const [showPostMatch, setShowPostMatch] = useState(false);
   const [aiReport, setAiReport] = useState<any[] | null>(null);
 
-  // Form states for match
   const [scoreA, setScoreA] = useState<string>("");
   const [scoreB, setScoreB] = useState<string>("");
   const [comments, setComments] = useState<string>("");
@@ -121,14 +119,14 @@ export default function AdminPage() {
         .eq('id', player.id);
 
       if (error) throw error;
-      setPlayers(players.map(p => p.id === player.id ? { ...p, paid: !p.paid } : p));
+      setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, paid: !p.paid } : p));
     } catch (error) {
       console.error("Error updating paid status:", error);
     }
   };
 
   const updatePlayerStats = (id: string, field: 'goals' | 'rating', value: number) => {
-    setPlayers(players.map(p => p.id === id ? { ...p, [field]: value } : p));
+    setPlayers(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const analyzeWithAI = async () => {
@@ -146,28 +144,22 @@ export default function AdminPage() {
       });
 
       const aiStats = await response.json();
-      console.log("📊 Datos recibidos de la IA:", aiStats);
-      
       if (aiStats.error) throw new Error(aiStats.error);
 
-      setAiReport(aiStats); // Guardamos el informe para mostrarlo
+      setAiReport(aiStats);
 
-      const updatedPlayers = players.map(player => {
-        // Buscamos coincidencia exacta o parecida
-        const aiData = aiStats.find((s: any) => 
-          s.name.toLowerCase().trim() === player.name.toLowerCase().trim()
-        );
+      // ACTUALIZACIÓN DE ESTADO INMEDIATA
+      setPlayers(prev => prev.map(player => {
+        const aiData = aiStats.find((s: any) => s.name.toLowerCase().trim() === player.name.toLowerCase().trim());
         if (aiData) {
           return { ...player, rating: aiData.rating, goals: aiData.goals };
         }
         return player;
-      });
-      
-      setPlayers(updatedPlayers);
-      alert("✨ Gemini AI: He analizado el partido. ¡Revisa los puntajes sugeridos!");
+      }));
+
     } catch (error: any) {
       console.error("AI Analysis Error:", error);
-      alert("Error en la IA: " + error.message + ". ¿Agregaste la GEMINI_API_KEY a .env.local?");
+      alert("Error: " + error.message);
     } finally {
       setSaving(false);
     }
@@ -176,7 +168,7 @@ export default function AdminPage() {
   const handleSaveResults = async () => {
     setSaving(true);
     try {
-      // Update match scores and comments
+      // 1. Guardar datos del partido
       const { error: matchError } = await supabase
         .from('matches')
         .update({
@@ -188,20 +180,26 @@ export default function AdminPage() {
 
       if (matchError) throw matchError;
 
-      // Update all players stats (using upsert or multiple updates)
-      for (const player of players) {
-        const { error: playerError } = await supabase
+      // 2. Guardar datos de CADA jugador (incluyendo los de la IA)
+      // Usamos Promise.all para que sea más rápido y seguro
+      const savePromises = players.map(player => 
+        supabase
           .from('players')
-          .update({
-            goals: player.goals,
-            rating: player.rating
+          .update({ 
+            goals: player.goals, 
+            rating: player.rating,
+            paid: player.paid // Guardamos todo por seguridad
           })
-          .eq('id', player.id);
-        if (playerError) throw playerError;
-      }
+          .eq('id', player.id)
+      );
 
-      alert("¡Resultados guardados correctamente!");
-      setShowPostMatch(false);
+      const results = await Promise.all(savePromises);
+      const errors = results.filter(r => r.error);
+      
+      if (errors.length > 0) throw new Error("Error al guardar algunos jugadores");
+
+      alert("¡Todo guardado correctamente! ⚽✅");
+      setAiReport(null);
     } catch (error: any) {
       alert("Error al guardar: " + error.message);
     } finally {
@@ -211,21 +209,15 @@ export default function AdminPage() {
 
   const generateTeams = () => {
     const goingPlayers = players.filter(p => p.status === 'going');
-    
-    // Sort players by rating descending. If rating is null/0, treat as average (e.g. 50)
     const sorted = [...goingPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     
     const teamA: string[] = [];
     const teamB: string[] = [];
 
-    // Snake distribution: A, B, B, A, A, B, B, A...
     sorted.forEach((player, index) => {
       const mod = index % 4;
-      if (mod === 0 || mod === 3) {
-        teamA.push(player.name);
-      } else {
-        teamB.push(player.name);
-      }
+      if (mod === 0 || mod === 3) teamA.push(player.name);
+      else teamB.push(player.name);
     });
 
     setTeams({ teamA, teamB });
@@ -238,315 +230,197 @@ export default function AdminPage() {
   );
 
   const paidPlayersCount = players.filter(p => p.paid).length;
-  const pricePerPerson = Number(match?.price) || 0;
-  const totalCollected = paidPlayersCount * pricePerPerson;
+  const totalCollected = paidPlayersCount * (match?.price || 0);
   const currentCourtCost = courtCost !== null ? courtCost : (match ? Number(match.price) * Number(match.max_players) : 0);
   const remainingCost = Math.max(0, currentCourtCost - totalCollected);
   const isMatchFinished = match ? new Date(match.time) < new Date() : false;
 
   return (
-    <main className="flex-1 flex flex-col px-4 py-8 max-w-md mx-auto min-h-screen pb-24">
-      <div className="flex items-center justify-between mb-8">
-        <button 
-          onClick={() => router.back()}
-          className="p-2 rounded-full bg-white/5 border border-white/10"
-        >
+    <main className="flex-1 flex flex-col px-4 py-6 max-w-md mx-auto min-h-screen pb-32">
+      {/* Mini Header */}
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={() => router.back()} className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-90">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="text-center">
-          <h1 className="text-xl font-bold font-outfit">Panel de Control</h1>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Match ID: {params.id}</p>
+          <h1 className="text-lg font-bold font-outfit">Administrar</h1>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{match?.location}</p>
         </div>
-        <div className="w-9" />
+        <div className="w-11" />
       </div>
 
-      <div className="space-y-6">
-        {/* Post-Match Summary / Results */}
-        {isMatchFinished ? (
-          <div className="glass-card rounded-3xl overflow-hidden">
-            <button 
-              onClick={() => setShowPostMatch(!showPostMatch)}
-              className="w-full p-6 flex items-center justify-between bg-primary/5 hover:bg-primary/10 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-xl">
-                  <Trophy className="w-5 h-5 text-primary" />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-bold text-sm">Post-Partido</h3>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Marcador y estadísticas</p>
-                </div>
-              </div>
-              {showPostMatch ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </button>
-
-            <AnimatePresence>
-              {showPostMatch && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="p-6 pt-0 space-y-6 border-t border-white/5"
-                >
-                  {/* Score Inputs */}
-                  <div className="space-y-3 pt-4">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Marcador Final</p>
-                    <div className="flex items-center justify-center gap-6">
-                      <div className="text-center space-y-2">
-                        <p className="text-[10px] font-medium text-muted-foreground">Equipo A</p>
-                        <input 
-                          type="number"
-                          placeholder="0"
-                          className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
-                          value={scoreA}
-                          onChange={(e) => setScoreA(e.target.value)}
-                        />
-                      </div>
-                      <div className="text-2xl font-bold text-muted-foreground mt-6">:</div>
-                      <div className="text-center space-y-2">
-                        <p className="text-[10px] font-medium text-muted-foreground">Equipo B</p>
-                        <input 
-                          type="number"
-                          placeholder="0"
-                          className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:ring-2 focus:ring-primary/50 outline-none"
-                          value={scoreB}
-                          onChange={(e) => setScoreB(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* General Comments */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                        <MessageSquare className="w-3 h-3" /> Comentarios para la IA
-                      </p>
-                      <button 
-                        onClick={analyzeWithAI}
-                        className="text-[10px] font-bold text-primary flex items-center gap-1 hover:bg-primary/10 px-2 py-1 rounded-lg transition-all"
-                      >
-                        <RefreshCcw className="w-3 h-3" /> Analizar con IA ✨
-                      </button>
-                    </div>
-                    <textarea 
-                      placeholder="Ej: Santi fue un crack metió 3 goles. Lucas jugó muy bien pero se cansó al final..."
-                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/50 outline-none resize-none"
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                    />
-                  </div>
-
-                  {/* AI Scout Report */}
-                  <AnimatePresence>
-                    {aiReport && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Informe del Ojeador IA ✨</p>
-                          <button onClick={() => setAiReport(null)} className="text-[10px] text-muted-foreground hover:text-white">Cerrar</button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {aiReport.map((stat, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-xs border-b border-white/5 pb-1">
-                              <span className="font-bold">{stat.name}</span>
-                              <div className="space-x-3">
-                                <span className="text-muted-foreground">Rating: <span className="text-primary">{stat.rating}</span></span>
-                                {stat.goals > 0 && <span className="text-muted-foreground">Goles: <span className="text-white">{stat.goals}</span></span>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <button
-                    disabled={saving}
-                    onClick={handleSaveResults}
-                    className="w-full bg-primary text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-all disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    Guardar Resultados
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+      <div className="space-y-4">
+        {/* Quick Stats Summary */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="glass-card p-4 rounded-2xl border-l-4 border-l-primary shadow-lg shadow-primary/5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-bold">Recaudado</p>
+            <p className="text-xl font-bold text-primary">${totalCollected}</p>
           </div>
-        ) : (
-          <div className="bg-white/5 border border-dashed border-white/10 rounded-3xl p-6 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
-              Las estadísticas estarán disponibles cuando el partido finalice
-            </p>
-          </div>
-        )}
-
-        {/* Expenses Card */}
-        <div className="glass-card rounded-3xl p-6 space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
-                <CircleDollarSign className="w-4 h-4 text-primary" /> Finanzas del Partido
-              </h3>
-            </div>
-            
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex justify-between items-center">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase mb-1">Costo Total Cancha</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-bold text-white">$</span>
-                  <input 
-                    type="number"
-                    value={currentCourtCost}
-                    onChange={(e) => setCourtCost(parseInt(e.target.value) || 0)}
-                    className="w-28 bg-transparent text-xl font-bold text-white focus:outline-none border-b border-white/20"
-                  />
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-muted-foreground uppercase mb-1">Cobro p/p</p>
-                <p className="font-bold text-white">${pricePerPerson}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Recaudado</p>
-                <p className="text-xl font-bold text-primary">${totalCollected}</p>
-              </div>
-              <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Faltante</p>
-                <p className="text-xl font-bold text-red-500">${remainingCost}</p>
-              </div>
-            </div>
+          <div className="glass-card p-4 rounded-2xl border-l-4 border-l-red-500 shadow-lg shadow-red-500/5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-bold">Faltante</p>
+            <p className="text-xl font-bold text-red-500">${remainingCost}</p>
           </div>
         </div>
 
-        {/* Player List with Stats */}
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <h3 className="font-bold flex items-center gap-2 px-2 text-primary uppercase tracking-widest text-[10px]">
-              <Users className="w-4 h-4" />
-              Jugadores Confirmados ({players.filter(p => p.status === 'going').length})
-            </h3>
-            <div className="space-y-3">
-              {players.filter(p => p.status === 'going').map((player) => (
-                <div 
-                  key={player.id}
-                  className="bg-white/5 border border-white/10 rounded-3xl p-4 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center text-sm font-bold text-primary uppercase">
-                        {player.name[0]}
-                      </div>
-                      <div>
-                        <span className="font-bold text-sm block">{player.name}</span>
-                        <button
-                          onClick={() => togglePaid(player)}
-                          className={`text-[10px] font-bold uppercase ${player.paid ? 'text-primary' : 'text-muted-foreground'}`}
-                        >
-                          {player.paid ? "Pagó ✓" : "Pendiente"}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {/* Stats Inputs */}
-                    {isMatchFinished && (
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <p className="text-[8px] text-muted-foreground uppercase mb-1">Goles</p>
-                          <input 
-                            type="number"
-                            className="w-10 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold focus:ring-1 focus:ring-primary outline-none"
-                            value={player.goals}
-                            onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[8px] text-muted-foreground uppercase mb-1">Puntos (0-100)</p>
-                          <input 
-                            type="number"
-                            max="100"
-                            min="0"
-                            className="w-14 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-sm font-bold text-primary focus:ring-1 focus:ring-primary outline-none"
-                            value={player.rating}
-                            onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bajas Section */}
-          {players.filter(p => p.status === 'not-going').length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-bold flex items-center gap-2 px-2 text-red-500 uppercase tracking-widest text-[10px]">
-                <XCircle className="w-4 h-4" />
-                Bajas ({players.filter(p => p.status === 'not-going').length})
-              </h3>
-              <div className="space-y-2 opacity-50">
-                {players.filter(p => p.status === 'not-going').map((player) => (
-                  <div key={player.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 flex justify-between items-center">
-                    <span className="text-sm font-medium">{player.name}</span>
-                    <span className="text-[10px] uppercase font-bold text-red-500">No va</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Team Generator */}
-        <div className="space-y-4 pt-4 pb-12">
-          <button
-            onClick={generateTeams}
-            className="w-full border border-primary/20 bg-primary/5 text-primary font-bold py-4 rounded-3xl flex items-center justify-center gap-2 hover:bg-primary/10 transition-all active:scale-[0.98]"
+        {/* Post-Match Card */}
+        <div className="glass-card rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+          <button 
+            onClick={() => setShowPostMatch(!showPostMatch)}
+            className="w-full p-5 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-all active:bg-white/20"
           >
-            <RefreshCcw className="w-5 h-5" />
-            Armar Equipos Equilibrados
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-sm font-bold">Post-Partido</span>
+            </div>
+            {showPostMatch ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
           </button>
 
           <AnimatePresence>
-            {teams && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-2 gap-4"
+            {showPostMatch && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="p-5 border-t border-white/5 space-y-5"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 px-2 text-primary">
-                    <Trophy className="w-4 h-4" />
-                    <span className="text-sm font-bold uppercase tracking-wider text-[10px]">Equipo A</span>
+                {!isMatchFinished ? (
+                  <div className="py-6 text-center space-y-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Disponible al finalizar</p>
+                    <p className="text-[10px] text-muted-foreground/50">El partido aún no ha comenzado</p>
                   </div>
-                  <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-2">
-                    {teams.teamA.map(name => (
-                      <p key={name} className="text-sm font-medium">{name}</p>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 px-2 text-blue-400">
-                    <LayoutGrid className="w-4 h-4" />
-                    <span className="text-sm font-bold uppercase tracking-wider text-[10px]">Equipo B</span>
-                  </div>
-                  <div className="bg-blue-400/5 border border-blue-400/20 rounded-2xl p-4 space-y-2">
-                    {teams.teamB.map(name => (
-                      <p key={name} className="text-sm font-medium">{name}</p>
-                    ))}
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">Marcador Final</p>
+                      <div className="flex items-center justify-center gap-4">
+                        <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all" value={scoreA} onChange={(e) => setScoreA(e.target.value)} />
+                        <span className="text-2xl font-bold text-muted-foreground">:</span>
+                        <input type="number" placeholder="0" className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl text-3xl font-bold text-center focus:border-primary outline-none transition-all" value={scoreB} onChange={(e) => setScoreB(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                          <CircleDollarSign className="w-3 h-3" /> Comentarios para IA
+                        </label>
+                        <button 
+                          onClick={analyzeWithAI} 
+                          disabled={saving}
+                          className="text-[10px] font-bold text-primary flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-xl hover:bg-primary/20 transition-all active:scale-95 border border-primary/20 disabled:opacity-50"
+                        >
+                          <Sparkles className="w-3 h-3" /> Analizar con IA
+                        </button>
+                      </div>
+                      <textarea 
+                        className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                        placeholder="Ej: Santi fue crack metió 2 goles. Pedro atajó todo..."
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                      />
+                    </div>
+
+                    {aiReport && (
+                      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Análisis de Gemini ✨</p>
+                          <button onClick={() => setAiReport(null)} className="text-[9px] text-muted-foreground uppercase">Cerrar</button>
+                        </div>
+                        <div className="text-[11px] space-y-2">
+                          {aiReport.map((s, i) => (
+                            <div key={i} className="flex justify-between border-b border-white/5 pb-1">
+                              <span className="font-medium">{s.name}</span>
+                              <span className="text-primary font-bold">{s.rating} pts</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
+
+        {/* Players List */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+              <Users className="w-3 h-3" /> Jugadores Confirmados ({players.filter(p => p.status === 'going').length})
+            </h3>
+            <button 
+              onClick={generateTeams} 
+              className="text-[10px] font-bold text-primary flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all active:scale-95"
+            >
+              <RefreshCcw className="w-3 h-3" /> Armar Equipos
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {players.filter(p => p.status === 'going').map((player) => (
+              <div key={player.id} className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <button 
+                    onClick={() => togglePaid(player)}
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${player.paid ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'bg-white/5 text-muted-foreground border border-white/10'}`}
+                  >
+                    <DollarSign className="w-5 h-5" />
+                  </button>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate">{player.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-[10px] uppercase font-bold tracking-tight ${player.paid ? 'text-primary' : 'text-muted-foreground'}`}>{player.paid ? 'Pagó' : 'Pendiente'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {isMatchFinished && (
+                  <div className="flex items-center gap-3">
+                    <div className="text-center">
+                      <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1 tracking-tighter">Goles</p>
+                      <input type="number" className="w-9 h-8 bg-white/5 border border-white/10 rounded-xl text-center text-xs font-bold focus:border-primary outline-none" value={player.goals} onChange={(e) => updatePlayerStats(player.id, 'goals', parseInt(e.target.value) || 0)} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1 tracking-tighter">Pts</p>
+                      <input type="number" className="w-11 h-8 bg-white/5 border border-white/10 rounded-xl text-center text-xs font-bold text-primary focus:border-primary outline-none" value={player.rating} onChange={(e) => updatePlayerStats(player.id, 'rating', parseInt(e.target.value) || 0)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Teams Result */}
+        <AnimatePresence>
+          {teams && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 gap-3 pt-2">
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 shadow-lg shadow-primary/5">
+                <p className="text-[10px] font-bold text-primary uppercase mb-3 tracking-widest text-center border-b border-primary/20 pb-2">Equipo A</p>
+                {teams.teamA.map(n => <p key={n} className="text-xs py-1.5 border-b border-white/5 last:border-0 font-medium">{n}</p>)}
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-lg">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3 tracking-widest text-center border-b border-white/10 pb-2">Equipo B</p>
+                {teams.teamB.map(n => <p key={n} className="text-xs py-1.5 border-b border-white/5 last:border-0 font-medium">{n}</p>)}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Floating Save Button */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-xs px-4">
+        <button 
+          onClick={handleSaveResults}
+          disabled={saving}
+          className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-primary/30 transition-all active:scale-95 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+          <span className="tracking-wide">GUARDAR TODO</span>
+        </button>
       </div>
     </main>
   );

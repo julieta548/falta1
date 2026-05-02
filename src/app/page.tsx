@@ -3,345 +3,274 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
+  Plus, 
+  Search, 
+  Calendar, 
   MapPin, 
-  Clock, 
   Users, 
-  CircleDollarSign, 
   ChevronRight, 
   Trophy,
+  Activity,
   LogOut,
-  User,
-  Loader2,
-  LogIn,
-  CalendarDays,
-  History
+  Settings,
+  LayoutGrid
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
-export default function Home() {
+interface Match {
+  id: string;
+  location: string;
+  time: string;
+  max_players: number;
+  admin_id: string;
+}
+
+export default function HomePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [myMatches, setMyMatches] = useState<any[]>([]);
-  const [formData, setFormData] = useState({
-    location: "",
-    time: "",
-    players: "10",
-    price: "",
-  });
+  const [showCreate, setShowCreate] = useState(false);
+
+  const [location, setLocation] = useState("");
+  const [time, setTime] = useState("");
+  const [maxPlayers, setMaxPlayers] = useState("10");
+  const [price, setPrice] = useState("");
 
   useEffect(() => {
     checkUser();
+    fetchMatches();
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchMyMatches();
-    }
-  }, [user]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
-    setCheckingAuth(false);
+    if (!user) {
+      router.push("/login");
+    } else {
+      fetchMatches(user.id);
+    }
   };
 
-  const fetchMyMatches = async () => {
-    const { data } = await supabase
-      .from('matches')
-      .select('*, players(count)')
-      .eq('admin_id', user.id)
-      .order('time', { ascending: true });
-    setMyMatches(data || []);
+  const fetchMatches = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("matches")
+      .select("*")
+      .eq('admin_id', userId)
+      .order("time", { ascending: true });
+
+    if (!error) setMatches(data || []);
+    setLoading(false);
+  };
+
+  const createMatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("matches")
+      .insert([
+        { 
+          location, 
+          time, 
+          max_players: parseInt(maxPlayers), 
+          price: parseFloat(price),
+          admin_id: user.id 
+        }
+      ])
+      .select();
+
+    if (!error && data) {
+      router.push(`/match/${data[0].id}`);
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setMyMatches([]);
+    router.push("/login");
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      const { data, error } = await supabase
-        .from("matches")
-        .insert([
-          {
-            location: formData.location,
-            time: formData.time,
-            max_players: parseInt(formData.players),
-            price: parseInt(formData.price),
-            admin_id: user.id,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        router.push(`/match/${data.id}`);
-      }
-    } catch (error: any) {
-      console.error("Error creating match:", error);
-      alert("Error: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (checkingAuth) return (
-    <div className="flex-1 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-  );
 
   const now = new Date();
-  const upcomingMatches = myMatches.filter(m => new Date(m.time) >= now);
-  const pastMatches = myMatches.filter(m => new Date(m.time) < now);
+  const upcomingMatches = matches.filter(m => new Date(m.time) >= now);
+  const pastMatches = matches.filter(m => new Date(m.time) < now);
 
   return (
-    <main className="flex-1 flex flex-col items-center px-4 py-12 bg-[radial-gradient(circle_at_top,_var(--primary)_0%,_transparent_25%)] min-h-screen">
-      {/* User Header */}
-      <div className="absolute top-6 right-6 flex items-center gap-4">
-        {user ? (
-          <div className="flex items-center gap-3 glass p-2 rounded-2xl">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <User className="w-4 h-4 text-primary" />
-            </div>
-            <span className="text-xs font-medium hidden sm:inline">{user.email}</span>
-            <button 
-              onClick={handleLogout}
-              className="p-2 hover:text-red-500 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+    <main className="flex-1 flex flex-col px-4 py-8 max-w-md mx-auto min-h-screen">
+      {/* User Profile Bar */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30">
+            <Activity className="w-6 h-6 text-primary" />
           </div>
-        ) : (
-          <button 
-            onClick={() => router.push("/login")}
-            className="glass px-4 py-2 rounded-2xl text-sm font-bold text-primary"
-          >
-            Entrar
-          </button>
-        )}
+          <div>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Bienvenido</p>
+            <h2 className="text-lg font-bold font-outfit truncate max-w-[150px]">{user?.email?.split('@')[0]}</h2>
+          </div>
+        </div>
+        <button 
+          onClick={handleLogout}
+          className="p-3 rounded-2xl bg-white/5 border border-white/10 text-muted-foreground hover:text-white transition-all active:scale-90"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md space-y-8"
-      >
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-              <Trophy className="w-8 h-8 text-primary" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight font-outfit">
-            Falta<span className="text-primary">1</span>
-          </h1>
-          <p className="text-muted-foreground">
-            {user ? "Organiza y gestiona tus partidos" : "Logueate para crear un partido"}
-          </p>
-        </div>
+      <div className="space-y-8 pb-24">
+        {/* Actions */}
+        <button 
+          onClick={() => setShowCreate(!showCreate)}
+          className="w-full bg-primary hover:bg-primary/90 text-black font-bold py-4.5 rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+        >
+          <Plus className="w-6 h-6" />
+          <span className="tracking-wide">CREAR NUEVO PARTIDO</span>
+        </button>
 
-        <AnimatePresence mode="wait">
-          {user ? (
-            <div className="space-y-8">
-              {/* Upcoming Matches */}
-              {upcomingMatches.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
-                    <CalendarDays className="w-3 h-3 text-primary" /> Próximos Partidos
-                  </h3>
-                  <div className="space-y-3">
-                    {upcomingMatches.map((m) => (
-                      <motion.div
-                        key={m.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        onClick={() => router.push(`/match/${m.id}`)}
-                        className="glass-card p-4 rounded-3xl flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-bold text-sm">{m.location}</p>
-                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> 
-                              {new Date(m.time).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </motion.div>
-                    ))}
+        <AnimatePresence>
+          {showCreate && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="glass-card rounded-3xl p-6 border border-primary/20 shadow-2xl shadow-primary/5"
+            >
+              <form onSubmit={createMatch} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Lugar</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input 
+                      required 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Nombre del complejo..."
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* Past Matches (History) */}
-              {pastMatches.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
-                    <History className="w-3 h-3" /> Historial
-                  </h3>
-                  <div className="space-y-3 opacity-60">
-                    {pastMatches.slice(0, 3).map((m) => (
-                      <div
-                        key={m.id}
-                        onClick={() => router.push(`/match/${m.id}`)}
-                        className="glass-card p-3 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all"
-                      >
-                        <p className="text-xs font-medium">{m.location}</p>
-                        <span className="text-[9px]">{new Date(m.time).toLocaleDateString()}</span>
-                      </div>
-                    ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Fecha y Hora</label>
+                    <input 
+                      type="datetime-local" 
+                      required 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-xs"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Jugadores</label>
+                    <select 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-xs appearance-none"
+                      value={maxPlayers}
+                      onChange={(e) => setMaxPlayers(e.target.value)}
+                    >
+                      <option value="10">Fútbol 5 (10)</option>
+                      <option value="12">Fútbol 6 (12)</option>
+                      <option value="14">Fútbol 7 (14)</option>
+                      <option value="16">Fútbol 8 (16)</option>
+                      <option value="22">Fútbol 11 (22)</option>
+                    </select>
                   </div>
                 </div>
-              )}
 
-              {/* Create Match Form */}
-              <div className="space-y-4 pt-4 border-t border-white/5">
-                <h3 className="text-[10px] font-bold flex items-center gap-2 px-2 text-muted-foreground uppercase tracking-widest">
-                  <Trophy className="w-3 h-3 text-primary" /> Crear Nuevo Partido
-                </h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="glass-card p-6 rounded-3xl space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="w-4 h-4" /> Lugar
-                      </label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="Ej: Cancha El Predio"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Precio por Jugador</label>
+                  <input 
+                    type="number" 
+                    required 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-4 outline-none focus:ring-2 focus:ring-primary/20 transition-all text-xs"
+                    placeholder="Ej: 5000"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" /> Cuándo
-                      </label>
-                      <input
-                        required
-                        type="datetime-local"
-                        step="900"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all [color-scheme:dark]"
-                        value={formData.time}
-                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                          <Users className="w-4 h-4" /> Tipo
-                        </label>
-                        <div className="relative">
-                          <select
-                            className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-white font-medium"
-                            value={formData.players}
-                            onChange={(e) => setFormData({ ...formData, players: e.target.value })}
-                          >
-                            <option value="10" className="bg-neutral-900">5 vs 5</option>
-                            <option value="14" className="bg-neutral-900">7 vs 7</option>
-                            <option value="18" className="bg-neutral-900">9 vs 9</option>
-                            <option value="22" className="bg-neutral-900">11 vs 11</option>
-                          </select>
-                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                          <CircleDollarSign className="w-4 h-4" /> Precio ($)
-                        </label>
-                        <input
-                          required
-                          type="number"
-                          placeholder="Total p/p"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                          value={formData.price}
-                          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    disabled={loading}
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <>
-                        Crear partido
-                        <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <button
-                onClick={() => router.push("/login")}
-                className="w-full bg-primary text-primary-foreground font-bold py-6 rounded-3xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-              >
-                <LogIn className="w-6 h-6" />
-                Entrar para organizar
-              </button>
-              <p className="text-center text-sm text-muted-foreground">
-                Es gratis y te permite gestionar todos tus partidos.
-              </p>
-            </div>
+                <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl transition-all active:scale-[0.98] mt-2">
+                  Confirmar Partido
+                </button>
+              </form>
+            </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={() => router.push("/ranking")}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Trophy className="w-4 h-4" />
-            Ver Ranking de Cracks
-          </button>
-        </div>
-      </motion.div>
-    </main>
-  );
-}
+        {/* Sections */}
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] px-1 flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-primary" /> Próximos Partidos
+            </h3>
+            <div className="space-y-3">
+              {upcomingMatches.length === 0 ? (
+                <div className="glass-card p-8 rounded-3xl text-center border border-dashed border-white/10">
+                  <p className="text-xs text-muted-foreground">No tienes partidos programados</p>
+                </div>
+              ) : (
+                upcomingMatches.map(match => (
+                  <button 
+                    key={match.id}
+                    onClick={() => router.push(`/match/${match.id}`)}
+                    className="w-full glass-card p-5 rounded-3xl flex items-center justify-between group hover:bg-white/10 transition-all active:scale-[0.99] border border-white/5 shadow-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center border border-white/10">
+                        <span className="text-[10px] font-bold text-primary leading-none mb-1">
+                          {new Date(match.time).toLocaleDateString('es-AR', { month: 'short' }).toUpperCase()}
+                        </span>
+                        <span className="text-lg font-bold leading-none">
+                          {new Date(match.time).getDate()}
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-bold text-sm mb-1">{match.location}</h4>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                            <Users className="w-3 h-3" /> {match.max_players} Jgs
+                          </span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                            <MapPin className="w-3 h-3" /> {new Date(match.time).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
 
-// Re-using icon for styling
-function ChevronDown(props: any) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="m6 9 6 6 6-6"/>
-    </svg>
+          <div className="space-y-4">
+            <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] px-1 flex items-center gap-2">
+              <Trophy className="w-3.5 h-3.5 text-muted-foreground" /> Historial
+            </h3>
+            <div className="space-y-3 opacity-60 grayscale-[0.5]">
+              {pastMatches.map(match => (
+                <button 
+                  key={match.id}
+                  onClick={() => router.push(`/match/${match.id}`)}
+                  className="w-full glass-card p-5 rounded-3xl flex items-center justify-between group hover:bg-white/10 transition-all border border-white/5"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex flex-col items-center justify-center border border-white/5">
+                      <span className="text-lg font-bold leading-none text-muted-foreground">
+                        {new Date(match.time).getDate()}
+                      </span>
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-bold text-sm mb-1 text-muted-foreground">{match.location}</h4>
+                      <p className="text-[10px] text-muted-foreground/60 uppercase font-bold tracking-widest">Partido Finalizado</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground/40" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }

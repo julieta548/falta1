@@ -228,47 +228,49 @@ export default function MatchPage() {
 
         {/* Actions */}
         <div className="sticky bottom-8 left-0 right-0 space-y-3">
+          {/* Admin Actions */}
           {isAdmin && (
             <button
               onClick={() => router.push(`/match/${params.id}/admin`)}
-              className="w-full bg-white text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-white/10"
+              className="w-full bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-white/10 mb-2"
             >
-              <RefreshCcw className="w-5 h-5" />
+              <RefreshCcw className="w-4 h-4" />
               Gestionar Partido
             </button>
           )}
 
-          <div className="flex gap-3">
+          {/* Participation Actions */}
+          <div className="flex gap-2">
             <button
               onClick={() => handleStatus("going")}
-              className={`flex-1 py-4 rounded-3xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
                 userStatus === "going" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-white/10 text-white hover:bg-white/20"
+                  ? "bg-primary text-black shadow-lg shadow-primary/20" 
+                  : "bg-white/5 text-white border border-white/5 hover:bg-white/10"
               }`}
             >
-              <CheckCircle2 className="w-5 h-5" />
+              <CheckCircle2 className="w-4 h-4" />
               Voy
             </button>
             <button
               onClick={() => handleStatus("not-going")}
-              className={`flex-1 py-4 rounded-3xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+              className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
                 userStatus === "not-going" 
                   ? "bg-red-500/20 text-red-500 border border-red-500/30" 
-                  : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                  : "bg-white/5 text-muted-foreground border border-white/5 hover:bg-white/10"
               }`}
             >
-              <XCircle className="w-5 h-5" />
+              <XCircle className="w-4 h-4" />
               No voy
             </button>
           </div>
 
           <button
             onClick={shareOnWhatsApp}
-            className="w-full bg-[#25D366] hover:bg-[#22c35e] text-black font-bold py-4 rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            className="w-full bg-[#25D366] hover:bg-[#22c35e] text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-[#25D366]/10 mt-2"
           >
             <MessageCircle className="w-5 h-5" />
-            Compartir en WhatsApp
+            <span className="text-sm">Compartir en WhatsApp</span>
           </button>
         </div>
       </motion.div>
