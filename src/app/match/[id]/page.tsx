@@ -153,12 +153,12 @@ export default function MatchPage() {
               <div className="flex items-center justify-center gap-6 py-2">
                 <div className="text-center">
                   <p className="text-[9px] text-muted-foreground uppercase mb-1">Equipo A</p>
-                  <span className="text-4xl font-black">{match.score_a}</span>
+                  <span className="text-4xl font-black">{match?.score_a}</span>
                 </div>
                 <span className="text-2xl font-bold text-muted-foreground self-end mb-1">:</span>
                 <div className="text-center">
                   <p className="text-[9px] text-muted-foreground uppercase mb-1">Equipo B</p>
-                  <span className="text-4xl font-black">{match.score_b}</span>
+                  <span className="text-4xl font-black">{match?.score_b}</span>
                 </div>
               </div>
             </div>
