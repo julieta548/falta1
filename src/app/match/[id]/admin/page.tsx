@@ -33,6 +33,7 @@ interface Player {
 interface Match {
   id: string;
   location: string;
+  time: string;
   price: number;
   max_players: number;
   admin_id: string;
